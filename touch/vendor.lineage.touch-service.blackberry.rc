@@ -1,0 +1,9 @@
+#
+# SPDX-FileCopyrightText: 2021-2026 The LineageOS Project
+# SPDX-License-Identifier: Apache-2.0
+#
+
+service vendor.touch-hal /vendor/bin/hw/vendor.lineage.touch-service.blackberry
+    class hal
+    user system
+    group system

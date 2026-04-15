@@ -1,42 +1,34 @@
 /*
- * Copyright (C) 2021 The LineageOS Project
+ * SPDX-FileCopyrightText: 2021-2026 The LineageOS Project
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#define LOG_TAG "vendor.lineage.touch@1.0-service.blackberry"
-
-#include <android-base/logging.h>
-#include <hidl/HidlTransportSupport.h>
+#define LOG_TAG "vendor.lineage.touch-service.blackberry"
 
 #include "GloveMode.h"
 #include "KeyDisabler.h"
 
-using ::vendor::lineage::touch::V1_0::IGloveMode;
-using ::vendor::lineage::touch::V1_0::implementation::GloveMode;
+#include <android-base/logging.h>
+#include <android/binder_manager.h>
+#include <android/binder_process.h>
 
-using ::vendor::lineage::touch::V1_0::IKeyDisabler;
-using ::vendor::lineage::touch::V1_0::implementation::KeyDisabler;
+using aidl::vendor::lineage::touch::GloveMode;
+using aidl::vendor::lineage::touch::KeyDisabler;
 
 int main() {
-    android::sp<IGloveMode> gloveMode = new GloveMode();
-    android::sp<IKeyDisabler> keyDisabler = new KeyDisabler();
+    ABinderProcess_setThreadPoolMaxThreadCount(0);
 
-    android::hardware::configureRpcThreadpool(1, true /*callerWillJoin*/);
+    std::shared_ptr<GloveMode> glovemode = ndk::SharedRefBase::make<GloveMode>();
+    const std::string gloveInstance = std::string(GloveMode::descriptor) + "/default";
+    binder_status_t status =
+            AServiceManager_addService(glovemode->asBinder().get(), gloveInstance.c_str());
+    CHECK_EQ(status, STATUS_OK) << "Failed to add service " << gloveInstance << " " << status;
 
-    if (gloveMode->registerAsService() != android::OK) {
-        LOG(ERROR) << "Cannot register touchscreen glove HAL service.";
-        return 1;
-    }
+    std::shared_ptr<KeyDisabler> keydisabler = ndk::SharedRefBase::make<KeyDisabler>();
+    const std::string keyInstance = std::string(KeyDisabler::descriptor) + "/default";
+    status = AServiceManager_addService(keydisabler->asBinder().get(), keyInstance.c_str());
+    CHECK_EQ(status, STATUS_OK) << "Failed to add service " << keyInstance << " " << status;
 
-    if (keyDisabler->registerAsService() != android::OK) {
-        LOG(ERROR) << "Cannot register touchscreen KeyDisabler HAL service.";
-        return 1;
-    }
-
-    LOG(INFO) << "Touchscreen HAL service ready.";
-
-    android::hardware::joinRpcThreadpool();
-
-    LOG(ERROR) << "Touchscreen HAL service failed to join thread pool.";
-    return 1;
+    ABinderProcess_joinThreadPool();
+    return EXIT_FAILURE;  // should not reach
 }

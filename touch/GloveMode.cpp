@@ -1,56 +1,49 @@
 /*
- * Copyright (C) 2021-2022 The LineageOS Project
+ * SPDX-FileCopyrightText: 2021-2026 The LineageOS Project
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#define LOG_TAG "GloveModeService"
+#define LOG_TAG "vendor.lineage.touch-service.blackberry"
 
 #include "GloveMode.h"
 
 #include <android-base/file.h>
 #include <android-base/logging.h>
-#include <android-base/properties.h>
 #include <android-base/strings.h>
-#include <fstream>
 
+namespace aidl {
 namespace vendor {
 namespace lineage {
 namespace touch {
-namespace V1_0 {
-namespace implementation {
 
-const std::string kGloveModePath = "/sys/devices/virtual/tp_device/tp_glove/glove_enable";
+static const std::string kGloveModePath =
+        "/sys/devices/virtual/tp_device/tp_glove/glove_enable";
 
-Return<bool> GloveMode::isEnabled() {
+ndk::ScopedAStatus GloveMode::getEnabled(bool* _aidl_return) {
     std::string val;
 
-    if (!android::base::ReadFileToString(kGloveModePath, &val)) {
-        PLOG(ERROR) << "Failed to read glove_mode";
-        return false;
+    if (!::android::base::ReadFileToString(kGloveModePath, &val)) {
+        PLOG(ERROR) << "Failed to read glove_enable";
+        *_aidl_return = false;
+        return ndk::ScopedAStatus::ok();
     }
 
-    android::base::Trim(val);
-    // not sure if this is needed but it seemed to fail without it
-    if (val == "0x1") {
-        return true;
-    }
-
-    return false;
+    val = ::android::base::Trim(val);
+    *_aidl_return = (val == "0x1" || val == "1");
+    return ndk::ScopedAStatus::ok();
 }
 
-Return<bool> GloveMode::setEnabled(bool enabled) {
+ndk::ScopedAStatus GloveMode::setEnabled(bool enabled) {
     std::string val = enabled ? "1" : "0";
 
-    bool ok = android::base::WriteStringToFile(val, kGloveModePath);
-    if (!ok) {
-        PLOG(ERROR) << "Failed to write glove_mode";
+    if (!::android::base::WriteStringToFile(val, kGloveModePath)) {
+        PLOG(ERROR) << "Failed to write glove_enable";
     }
 
-    return ok;
+    return ndk::ScopedAStatus::ok();
 }
 
-}  // namespace implementation
-}  // namespace V1_0
 }  // namespace touch
 }  // namespace lineage
 }  // namespace vendor
+}  // namespace aidl
